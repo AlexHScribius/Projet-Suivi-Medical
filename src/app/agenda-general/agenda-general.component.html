@@ -1,16 +1,30 @@
+<div class="allPage" *ngIf="ngOnInitIsLoaded | async" (mouseenter) ="mouseEnter()">
 
-<div id="modal" *ngIf="afficherConfirmationJourRdv">
-  <br/>Prendre un rendez-vous pour cette date ?<br/><br/><br/>
+<div id="modal" *ngIf="confirmationRdvAffichee">
+  <br/>Prendre un rendez-vous pour {{clickedDateStart | date:'HH:mm'}} ?<br/><br/>
   <div class="row text-center">
     <div class="col-md-6">
-      <div id="OK" class="btn btn-secondary-contrast" (click)="setView(CalendarView.Day)">OK</div>
+      <div id="OK" class="btn btn-secondary-contrast" (click)="addEvent()">OK</div>
     </div>
     <div class="col-md-6">
-      <div id="Annuler" class="btn btn-secondary-contrast" (click)="alertPrendreRdv()">Annuler</div>
+      <div id="Annuler" class="btn btn-secondary-contrast" (click)="afficherConfirmationRdv()">Annuler</div>
     </div>
   </div>
 </div>
-<div id="main" *ngIf="!afficherConfirmationJourRdv">
+
+<div id="modal2" *ngIf="confirmationSuppressionAffichee">
+  <br/>Voulez-vous vraiment annuler le rendez-vous de {{eventClickedObject.start | date:'dd/MM/yyyy'}} de {{eventClickedObject.start | date:'HH:mm'}} ?<br/>
+  <div class="row text-center">
+    <div class="col-md-6">
+      <div id="OK" class="btn btn-secondary-contrast" (click)="deleteEventClicked();afficherConfirmationSuppression()">OK</div>
+    </div>
+    <div class="col-md-6">
+      <div id="Annuler" class="btn btn-secondary-contrast" (click)="afficherConfirmationSuppression()">Annuler</div>
+    </div>
+  </div>
+</div>
+
+<div id="main" *ngIf="!confirmationRdvAffichee && !confirmationSuppressionAffichee">
   <div
     *ngIf="view === CalendarView.Day"
     class="btn btn-secondary"
@@ -59,8 +73,8 @@
       [events]="events"
       [refresh]="refresh"
       [locale]="locale"
-      (dayClicked)="setView(CalendarView.Day)"
-      (eventClicked)="handleEvent('Clicked', $event.event)"
+      (dayClicked)="dayClicked($event.day)"
+      (eventClicked)="eventClicked($event)"
       (eventTimesChanged)="eventTimesChanged($event)"
     >
     </mwl-calendar-month-view>
@@ -70,8 +84,8 @@
       [events]="events"
       [refresh]="refresh"
       [locale]="locale"
-      (hourSegmentClicked)="clickedDate = $event.date;hourSegmentClicked(clickedDate)"
-      (eventClicked)="handleEvent('Clicked', $event.event)"
+      (hourSegmentClicked)="hourSegmentClicked($event.date)"
+      (eventClicked)="eventClicked($event)"
       (eventTimesChanged)="eventTimesChanged($event)"
     >
     </mwl-calendar-day-view>
@@ -165,5 +179,8 @@
       </tbody>
     </table>
   </div>
+
+</div>
+
 
 </div>

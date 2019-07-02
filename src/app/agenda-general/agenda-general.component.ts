@@ -14,7 +14,9 @@ import {
   endOfMonth,
   isSameDay,
   isSameMonth,
-  addHours
+  addHours,
+  getMinutes,
+  isSameHour
 } from 'date-fns';
 import { Subject } from 'rxjs';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
@@ -27,9 +29,12 @@ import {
   DAYS_OF_WEEK
 } from 'angular-calendar';
 import { CustomDateFormatter } from '../agenda-general/custom-date-formatter.provider';
-import { ConsultationService } from '../services/consultation.service';
 import { DOCUMENT } from '@angular/common'; 
 import { CalendarDayViewHourSegmentComponent } from 'angular-calendar/modules/day/calendar-day-view-hour-segment.component';
+import { Consultation } from '../model/consultation';
+import { ConsultationService } from '../services/consultation.service';
+import { stringify } from 'querystring';
+import { isNull } from 'util';
 
 const colors: any = {
   red: {
@@ -61,17 +66,16 @@ const colors: any = {
 
 export class AgendaGeneralComponent implements OnInit {
   
-  constructor(private consultationService: ConsultationService,private modal: NgbModal,@Inject(DOCUMENT) document) { }
-  ngOnInit() {
-  }
+  constructor(
+    private consultationService: ConsultationService,
+    private modal: NgbModal,
+    @Inject(DOCUMENT) document)
+  {}
 
   @ViewChild('modalContent', { static: true }) modalContent: TemplateRef<any>;
 
-  afficherConfirmationJourRdv: boolean = false;
-
-  alertPrendreRdv(){
-    this.afficherConfirmationJourRdv=!this.afficherConfirmationJourRdv;
-  }
+  confirmationRdvAffichee: boolean = false;
+  confirmationSuppressionAffichee: boolean = false;
 
   view: CalendarView = CalendarView.Month;
 
@@ -85,8 +89,15 @@ export class AgendaGeneralComponent implements OnInit {
 
   viewDate: Date = new Date();
 
-  clickedDate: Date;
-  clickedDate2: Date;
+  clickedDateStart: Date;
+  clickedDateEnd: Date;
+
+  selectedDayViewDate: Date;
+
+  activeDayIsOpen: boolean = true;
+  activeHourIsOpen: boolean = true;
+
+  eventClickedObject: CalendarEvent;
 
   modalData: {
     action: string;
@@ -111,48 +122,65 @@ export class AgendaGeneralComponent implements OnInit {
 
   refresh: Subject<any> = new Subject();
   
-  events: CalendarEvent[] = [
-    {
-      start: subDays(startOfDay(new Date()), 1),
-      end: addDays(new Date(), 1),
-      title: 'A 3 day event',
-      color: colors.red,
-      actions: this.actions,
-      allDay: true,
-      resizable: {
-        beforeStart: true,
-        afterEnd: true
-      },
-      draggable: true
-    },
-    {
-      start: startOfDay(new Date()),
-      title: 'An event with no end date',
-      color: colors.yellow,
-      actions: this.actions
-    },
-    {
-      start: subDays(endOfMonth(new Date()), 3),
-      end: addDays(endOfMonth(new Date()), 3),
-      title: 'A long event that spans 2 months',
-      color: colors.blue,
-      allDay: true
-    },
-    {
-      start: addHours(startOfDay(new Date()), 2),
-      end: new Date(),
-      title: 'A draggable and resizable event',
-      color: colors.yellow,
-      actions: this.actions,
-      resizable: {
-        beforeStart: true,
-        afterEnd: true
-      },
-      draggable: true
-    }
-  ];
+  events: CalendarEvent[] = [];
 
-  activeDayIsOpen: boolean = true;
+  consultations: Consultation[];
+  consultationTemporaire: Consultation;
+
+  ngOnInitIsLoaded: Promise<boolean>;
+
+  ngOnInit() {
+    const that = this;
+    this.consultationService.getConsultations().subscribe( // recherche de la liste des consultations
+      res => {
+        that.consultations = res;
+  
+        for (let i=0;i<that.consultations.length;i++){
+          let title: string = '';
+          if (isNull(that.consultations[i]['prenomPatient']) && isNull(that.consultations[i]['nomPatient'])){
+            title='Consultation (Patient inconnu)'
+          } else {
+            title=(that.consultations[i]['prenomPatient']+" "+that.consultations[i]['nomPatient']).trim();
+          }
+          let end: Date;
+          if (isNull(that.consultations[i]['date'])){
+            end = new Date();
+          } else {
+            end = new Date(that.consultations[i]['date']);
+            end.setMinutes(end.getMinutes()+60,0,0);
+          }
+          // adapter la couleur au connectedUser
+          that.events = [
+            ...that.events,
+            {
+              title: title,
+              start: new Date(that.consultations[i]['date']),
+              end: end,
+              color: colors.red,
+              allDay: false,
+              draggable: false,
+              resizable: {
+                beforeStart: false,
+                afterEnd: false
+              }
+            }
+          ];
+        }
+      }
+    );
+    this.ngOnInitIsLoaded = Promise.resolve(true);
+  }
+
+  mouseEnter(){ // pour actualiser la page
+  }
+
+  afficherConfirmationRdv(){
+    this.confirmationRdvAffichee=!this.confirmationRdvAffichee;
+  }
+
+  afficherConfirmationSuppression(){
+    this.confirmationSuppressionAffichee=!this.confirmationSuppressionAffichee;
+  }
 
   dayClicked({ date, events }: { date: Date; events: CalendarEvent[] }): Date {
     if (isSameMonth(date, this.viewDate)) {
@@ -166,13 +194,24 @@ export class AgendaGeneralComponent implements OnInit {
         this.activeDayIsOpen = true;
       }
     }
+    this.setView(CalendarView.Day);
     return date;
   }
 
-  hourSegmentClicked({ hour, events }: { hour: Date; events: CalendarEvent[] }): void {
-    this.clickedDate2=this.clickedDate;
-    this.clickedDate2.setHours(this.clickedDate2.getHours() + 1);
-    this.addEvent();
+  hourSegmentClicked( date : Date ) : void {
+    this.selectedDayViewDate = date;
+    if (isSameDay(date,this.viewDate)){
+      this.viewDate = date;
+      if (isSameHour(date,this.viewDate) && this.activeHourIsOpen === true){
+        this.activeHourIsOpen = false;
+      } else {
+        this.activeHourIsOpen = true;
+      }
+    }
+    this.clickedDateStart=new Date(date);
+    this.clickedDateEnd=new Date(this.clickedDateStart);
+    this.clickedDateEnd.setMinutes(this.clickedDateEnd.getMinutes()+60,0,0);
+    this.afficherConfirmationRdv();
   }
 
   eventTimesChanged({event,newStart,newEnd}: CalendarEventTimesChangedEvent): void {
@@ -194,35 +233,49 @@ export class AgendaGeneralComponent implements OnInit {
     this.modal.open(this.modalContent, { size: 'lg' });
   }
 
+  eventClicked({ event }: { event: CalendarEvent }): void {
+    this.eventClickedObject = event;
+    this.afficherConfirmationSuppression();
+  }
+
   addEvent(): void {
     this.events = [
       ...this.events,
       {
-        title: 'Consultation',
-        start: this.clickedDate,
-        end: this.clickedDate2,
+        title: 'Consultation', // changer pour avoir le nom/prénom de la personne connectée
+        start: this.clickedDateStart,
+        end: this.clickedDateEnd,
         color: colors.red,
-        draggable: true,
+        allDay: false,
+        draggable: false,
         resizable: {
-          beforeStart: true,
-          afterEnd: true
+          beforeStart: false,
+          afterEnd: false
         }
       }
     ];
+    this.consultationTemporaire = new Consultation();
+    console.log("consultation temporaire : " + this.consultationTemporaire);
+    this.consultationTemporaire.date = this.clickedDateStart;
+    const that = this;
+    this.consultationService.addConsultation(this.consultationTemporaire).subscribe(
+      res => {
+        that.consultationTemporaire = res;
+      }
+    );
+    this.afficherConfirmationRdv();
   }
 
   deleteEvent(eventToDelete: CalendarEvent) {
     this.events = this.events.filter(event => event !== eventToDelete);
   }
 
+  deleteEventClicked() {
+    this.events = this.events.filter(event => event !== this.eventClickedObject);
+  }
+
   setView(view: CalendarView) {
-    if (view === CalendarView.Month){
-      this.view = view;
-    }else{
-      this.view = view;
-      this.afficherConfirmationJourRdv=!this.afficherConfirmationJourRdv;
-    }
-    
+    this.view = view;    
   }
 
   closeOpenMonthViewDay() {
