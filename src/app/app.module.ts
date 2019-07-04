@@ -18,6 +18,7 @@ import { HttpModule } from '@angular/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { registerLocaleData } from '@angular/common';
 import localeFr from '@angular/common/locales/fr';
+import { DetailConsultationComponent } from './detail-consultation/detail-consultation.component';
 
 registerLocaleData(localeFr);
 
@@ -25,7 +26,8 @@ registerLocaleData(localeFr);
   declarations: [
     AppComponent,
     AccueilComponent,
-    AgendaGeneralComponent
+    AgendaGeneralComponent,
+    DetailConsultationComponent
   ],
   imports: [
     BrowserAnimationsModule,
@@ -42,7 +44,7 @@ registerLocaleData(localeFr);
       useFactory: adapterFactory
     })
   ],
-  exports: [AgendaGeneralComponent],
+  exports: [AgendaGeneralComponent,DetailConsultationComponent],
   providers: [],
   bootstrap: [AppComponent]
 })

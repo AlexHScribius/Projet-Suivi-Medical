@@ -4,7 +4,8 @@ import {
   ChangeDetectionStrategy,
   ViewChild,
   TemplateRef,
-  Inject
+  Inject,
+  OnDestroy
 } from '@angular/core';
 import {
   startOfDay,
@@ -16,10 +17,12 @@ import {
   isSameMonth,
   addHours,
   getMinutes,
-  isSameHour
+  isSameHour,
+  isToday,
+  isThisQuarter
 } from 'date-fns';
 import { Subject } from 'rxjs';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModal, ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import {
   CalendarEvent,
   CalendarEventAction,
@@ -35,6 +38,8 @@ import { Consultation } from '../model/consultation';
 import { ConsultationService } from '../services/consultation.service';
 import { stringify } from 'querystring';
 import { isNull } from 'util';
+import { DataService } from '../services/data.service';
+import { Router } from '@angular/router';
 
 const colors: any = {
   red: {
@@ -64,18 +69,42 @@ const colors: any = {
   ]
 })
 
-export class AgendaGeneralComponent implements OnInit {
+export class AgendaGeneralComponent implements OnInit,OnDestroy {
   
   constructor(
+    private modalService: NgbModal,
     private consultationService: ConsultationService,
+    private dataService: DataService,
     private modal: NgbModal,
+    private _router: Router,
     @Inject(DOCUMENT) document)
   {}
 
   @ViewChild('modalContent', { static: true }) modalContent: TemplateRef<any>;
 
+  modalData: {
+    action: string;
+    event: CalendarEvent;
+  };
+
+  actions: CalendarEventAction[] = [
+    {
+      label: '<i class="fa fa-fw fa-pencil"></i>',
+      onClick: ({ event }: { event: CalendarEvent }): void => {
+        this.handleEvent('Edited', event);
+      }
+    },
+    {
+      label: '<i class="fa fa-fw fa-times"></i>',
+      onClick: ({ event }: { event: CalendarEvent }): void => {
+        this.events = this.events.filter(iEvent => iEvent !== event);
+        this.handleEvent('Deleted', event);
+      }
+    }
+  ];
+
   confirmationRdvAffichee: boolean = false;
-  confirmationSuppressionAffichee: boolean = false;
+  eventClickedAffichee: boolean = false;
 
   view: CalendarView = CalendarView.Month;
 
@@ -99,27 +128,6 @@ export class AgendaGeneralComponent implements OnInit {
 
   eventClickedObject: CalendarEvent;
 
-  modalData: {
-    action: string;
-    event: CalendarEvent;
-  };
-
-  actions: CalendarEventAction[] = [
-    {
-      label: '<i class="fa fa-fw fa-pencil"></i>',
-      onClick: ({ event }: { event: CalendarEvent }): void => {
-        this.handleEvent('Edited', event);
-      }
-    },
-    {
-      label: '<i class="fa fa-fw fa-times"></i>',
-      onClick: ({ event }: { event: CalendarEvent }): void => {
-        this.events = this.events.filter(iEvent => iEvent !== event);
-        this.handleEvent('Deleted', event);
-      }
-    }
-  ];
-
   refresh: Subject<any> = new Subject();
   
   events: CalendarEvent[] = [];
@@ -128,6 +136,10 @@ export class AgendaGeneralComponent implements OnInit {
   consultationTemporaire: Consultation;
 
   ngOnInitIsLoaded: Promise<boolean>;
+
+  closeResult: string;
+
+  elementClicked: string;
 
   ngOnInit() {
     const that = this;
@@ -149,20 +161,41 @@ export class AgendaGeneralComponent implements OnInit {
             end = new Date(that.consultations[i]['date']);
             end.setMinutes(end.getMinutes()+60,0,0);
           }
+          let color: any;
+          let annulee: boolean;
+          let effectuee: boolean;
+          let now: Date = new Date();
+          if (that.consultations[i]['annulee'] === true){
+            color = colors.red;
+            annulee = true;
+            effectuee = false;
+          } else {
+            annulee = false;
+            if (new Date(that.consultations[i]['date']) < now){
+              color = colors.yellow;
+              effectuee = true;
+            } else {
+              color = colors.blue;
+              effectuee = false;
+            }
+          }
           // adapter la couleur au connectedUser
           that.events = [
             ...that.events,
             {
+              id: that.consultations[i]['idConsultation'],
               title: title,
               start: new Date(that.consultations[i]['date']),
               end: end,
-              color: colors.red,
+              color: color,
               allDay: false,
               draggable: false,
               resizable: {
                 beforeStart: false,
                 afterEnd: false
-              }
+              },
+              annulee: annulee,
+              effectuee: effectuee
             }
           ];
         }
@@ -171,18 +204,29 @@ export class AgendaGeneralComponent implements OnInit {
     this.ngOnInitIsLoaded = Promise.resolve(true);
   }
 
-  mouseEnter(){ // pour actualiser la page
+  mouseOver(){ // pour actualiser la page
+  }
+
+  private getDismissReason(reason: any): string { // appelé par le modal en cas d'erreur
+    if (reason === ModalDismissReasons.ESC) {
+      return 'by pressing ESC';
+    } else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
+      return 'by clicking on a backdrop';
+    } else {
+      return  `with: ${reason}`;
+    }
   }
 
   afficherConfirmationRdv(){
     this.confirmationRdvAffichee=!this.confirmationRdvAffichee;
   }
 
-  afficherConfirmationSuppression(){
-    this.confirmationSuppressionAffichee=!this.confirmationSuppressionAffichee;
+  afficherEventClicked(){
+    this.eventClickedAffichee=!this.eventClickedAffichee;
   }
 
   dayClicked({ date, events }: { date: Date; events: CalendarEvent[] }): Date {
+    this.elementClicked = "day"; // indique que l'élément cliqué est un day
     if (isSameMonth(date, this.viewDate)) {
       this.viewDate = date;
       if (
@@ -198,7 +242,8 @@ export class AgendaGeneralComponent implements OnInit {
     return date;
   }
 
-  hourSegmentClicked( date : Date ) : void {
+  hourSegmentClicked( date : Date, content ) : void {
+    this.elementClicked = "hourSegment"; // indique que l'élément cliqué est un hourSegment (dayView du calendar)
     this.selectedDayViewDate = date;
     if (isSameDay(date,this.viewDate)){
       this.viewDate = date;
@@ -211,7 +256,16 @@ export class AgendaGeneralComponent implements OnInit {
     this.clickedDateStart=new Date(date);
     this.clickedDateEnd=new Date(this.clickedDateStart);
     this.clickedDateEnd.setMinutes(this.clickedDateEnd.getMinutes()+60,0,0);
-    this.afficherConfirmationRdv();
+    var now: Date = new Date();
+    if (now <= this.clickedDateStart){
+      this.modalService.open(content).result.then((result) => {
+        this.closeResult = `Closed with: ${result}`;
+      }, (reason) => {
+        this.closeResult = `Dismissed ${this.getDismissReason(reason)}`;
+      });
+    } else {
+      alert('Vous essayez de créer un rendez-vous dans le passé, lol')
+    }
   }
 
   eventTimesChanged({event,newStart,newEnd}: CalendarEventTimesChangedEvent): void {
@@ -233,37 +287,57 @@ export class AgendaGeneralComponent implements OnInit {
     this.modal.open(this.modalContent, { size: 'lg' });
   }
 
-  eventClicked({ event }: { event: CalendarEvent }): void {
+  eventClicked( event:CalendarEvent, content2 ): void {
+    this.elementClicked = "event";// indique que l'élément cliqué est un event
+
     this.eventClickedObject = event;
-    this.afficherConfirmationSuppression();
+    
+    // affiche le modal #content2 correspondant à l'event cliqué
+    this.modalService.open(content2).result.then((result) => {
+      this.closeResult = `Closed with: ${result}`;
+    }, (reason) => {
+      this.closeResult = `Dismissed ${this.getDismissReason(reason)}`;
+    });
   }
 
   addEvent(): void {
-    this.events = [
-      ...this.events,
-      {
-        title: 'Consultation', // changer pour avoir le nom/prénom de la personne connectée
-        start: this.clickedDateStart,
-        end: this.clickedDateEnd,
-        color: colors.red,
-        allDay: false,
-        draggable: false,
-        resizable: {
-          beforeStart: false,
-          afterEnd: false
-        }
-      }
-    ];
-    this.consultationTemporaire = new Consultation();
-    console.log("consultation temporaire : " + this.consultationTemporaire);
-    this.consultationTemporaire.date = this.clickedDateStart;
     const that = this;
+    this.consultationService.getConsultations().subscribe(
+      res => {
+        that.consultations = res;
+        let max:number = 0;
+        for (let i=0;i<that.consultations.length;i++){
+          if (that.consultations[i]['idConsultation']>max){
+            max = that.consultations[i]['idConsultation']
+          }
+        }
+        this.events = [
+          ...this.events,
+          {
+            id: max,
+            title: 'Consultation', // changer pour avoir le nom/prénom de la personne connectée
+            start: that.clickedDateStart,
+            end: that.clickedDateEnd,
+            color: colors.blue,
+            allDay: false,
+            draggable: false,
+            resizable: {
+              beforeStart: false,
+              afterEnd: false
+            }
+          }
+        ];
+
+      }
+    )
+    
+    this.consultationTemporaire = new Consultation();
+    this.consultationTemporaire.date = this.clickedDateStart;
     this.consultationService.addConsultation(this.consultationTemporaire).subscribe(
       res => {
         that.consultationTemporaire = res;
       }
     );
-    this.afficherConfirmationRdv();
   }
 
   deleteEvent(eventToDelete: CalendarEvent) {
@@ -271,7 +345,23 @@ export class AgendaGeneralComponent implements OnInit {
   }
 
   deleteEventClicked() {
-    this.events = this.events.filter(event => event !== this.eventClickedObject);
+    const that = this;
+    this.consultationService.getConsultation(+this.eventClickedObject['event'].id).subscribe(
+      res => {
+        that.consultationTemporaire = new Consultation();
+        that.consultationTemporaire = res;
+        that.consultationTemporaire.annulee = true;
+        that.consultationService.updateConsultation(that.consultationTemporaire).subscribe(
+          res => {
+            that.consultationTemporaire = res;
+          }
+        );
+      }
+    );
+
+    this.eventClickedObject['event'].color = colors.red;
+
+    //this.events = this.events.filter(event => event !== this.eventClickedObject['event']);
   }
 
   setView(view: CalendarView) {
@@ -280,5 +370,22 @@ export class AgendaGeneralComponent implements OnInit {
 
   closeOpenMonthViewDay() {
     this.activeDayIsOpen = false;
+  }
+
+  consulterConsultation () {
+    const that = this;
+    this.consultationService.getConsultation(+this.eventClickedObject['event'].id).subscribe(
+      res => {
+        that.consultationTemporaire = res;
+        that.consultationTemporaire.annulee = this.eventClickedObject['event'].annulee;
+        that.consultationTemporaire.effectuee = this.eventClickedObject['event'].effectuee;
+        this.dataService.consultation = that.consultationTemporaire;
+        this._router.navigate(['detailConsultation']);
+      }
+    );    
+  }
+
+  ngOnDestroy() {
+
   }
 }

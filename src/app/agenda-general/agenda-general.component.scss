@@ -1,51 +1,39 @@
-h3 {
-    margin: 0 0 10px;
-  }
-  
-pre {
-  background-color: #f5f5f5;
-  padding: 15px;
-}
-
-.btn-secondary, .btn-outline-secondary, .btn {
+.close, .close-outline, .close {
   line-height: 1 !important;
-  color: rgb(0, 0, 0);
-  background-color: #ADEBC9;
-  border-color: #ADEBC9;
+  color: rgb(0, 0, 0) !important;
+  background-color: #ADEBC9 !important;
+  border-color: #ADEBC9 !important;
 }
 
-.btn-secondary-contrast, .btn-outline-secondary-contrast {
-  line-height: 1 !important;
-  color: rgb(0, 0, 0);
-  background-color: #98D3B3;
-  border-color: #8DC2A5;
+.close:hover,.close-outline:hover, .close.disabled, .close:disabled, .close:not(:disabled):not(.disabled):active, .close:not(:disabled):not(.disabled).active,
+.show > .close.dropdown-toggle {
+  color: rgb(0, 0, 0) !important;
+  background-color: #ADEBC9 !important;
+  border-color: #8DC2A5 !important;
 }
 
-.btn-secondary:hover,.btn-outline-secondary:hover, .btn-secondary.disabled, .btn-secondary:disabled, .btn-secondary:not(:disabled):not(.disabled):active, .btn-secondary:not(:disabled):not(.disabled).active,
-.show > .btn-secondary.dropdown-toggle {
-  color: rgb(0, 0, 0);
-  background-color: #ADEBC9;
-  border-color: #8DC2A5;
+.close:focus, .close-outline:focus, .close.focus, .close:not(:disabled):not(.disabled):active:focus, .close:not(:disabled):not(.disabled).active:focus,
+.show > .close.dropdown-toggle:focus {
+  box-shadow: 0 0 0 0.2rem rgba(88, 139, 126, 0.5) !important;
 }
 
-.btn-secondary-contrast:hover,.btn-outline-secondary-contrast:hover, .btn-secondary-contrast.disabled, .btn-secondary-contrast:disabled, .btn-secondary-contrast:not(:disabled):not(.disabled):active, .btn-secondary-contrast:not(:disabled):not(.disabled).active,
-.show > .btn-secondary-contrast.dropdown-toggle {
-  color: rgb(0, 0, 0);
-  background-color: #98D3B3;
-  border-color: #7FAD94;
-}
-
-.btn-secondary:focus, .btn-outline-secondary:focus, .btn-secondary.focus, .btn-secondary:not(:disabled):not(.disabled):active:focus, .btn-secondary:not(:disabled):not(.disabled).active:focus,
-.show > .btn-secondary.dropdown-toggle:focus {
-  box-shadow: 0 0 0 0.2rem rgba(88, 139, 126, 0.5);
-}
-
-#modal, #modal2 {
-  border-top: 10px;
+#modal {
+  padding-top: 10px;
   margin-right:auto;
   margin-left:auto;
   width:400px;
-  height:140px;
+  height:100px;
+  background-color:#ADEBC9;
+  border-color: #8DC2A5;
+  text-align: center;
+}
+
+#modal2 {
+  padding-top: 10px;
+  margin-right:auto;
+  margin-left:auto;
+  width:500px;
+  height:185px;
   background-color:#ADEBC9;
   border-color: #8DC2A5;
   text-align: center;

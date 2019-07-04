@@ -1,0 +1,106 @@
+<div class="allPage" *ngIf="ngOnInitIsLoaded | async" (mouseover) ="mouseOver()">
+
+  <a [routerLink]="['/accueil']"><div class="btn btn-secondary">Retour à l'Accueil</div></a>
+  <a [routerLink]="['/agendaGeneral']"><div class="btn btn-secondary">Retour à l'agenda</div></a>
+  
+  <br/><br/>
+
+  <h3>Consultation :</h3>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Date</th>
+      <th scope="col">Heure</th>
+      <th scope="col">Consultation effectuée ?</th>
+      <th scope="col">Consultation annulée ?</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>{{ consultation.idConsultation | number }}</td>
+      <td>{{ consultation.date | date:'dd/MM/yyyy' }}</td>
+      <td>{{ consultation.date | date:'HH' }}h{{ consultation.date | date:'mm' }}</td>
+      <td>
+        <div *ngIf="consultation.idConsultation != null">
+          <div *ngIf="consultation.effectuee === false ">Non</div>
+          <div *ngIf="consultation.effectuee === true ">Oui</div>
+        </div>
+      </td>
+      <td>
+        <div *ngIf="consultation.idConsultation != null">
+          <div *ngIf="consultation.annulee === false ">Non</div>
+          <div *ngIf="consultation.annulee === true ">Oui</div>
+        </div>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+
+  <br/><br/>
+
+  <h3>Médecin :</h3>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Prénom Médecin</th>
+      <th scope="col">Nom Médecin</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>{{ consultation.idMedecin | number }}</td>
+      <td>{{ consultation.prenomMedecin }}</td>
+      <td>{{ consultation.nomMedecin }}</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <br/><br/>
+
+  <h3>Patient :</h3>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Prénom Patient</th>
+      <th scope="col">Nom Patient</th>
+      <th scope="col"># Dossier du Patient</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>{{ consultation.idPatient | number }}</td>
+      <td>{{ consultation.prenomPatient }}</td>
+      <td>{{ consultation.nomPatient }}</td>
+      <td>{{ consultation.idDossierPatient | number }}</td>
+    </tr>
+    </tbody>
+  </table>
+  
+  <br/><br/>
+
+  <h3>Facture :</h3>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Facture payée ?</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td>{{ consultation.idFacture | number }}</td>
+      <td>
+        <div *ngIf="consultation.idFacture != null">
+          <div *ngIf="consultation.facturePayee === false ">Non</div>
+          <div *ngIf="consultation.facturePayee === true ">Oui</div>
+        </div>
+      </td>
+    </tr>
+    </tbody>
+  </table>
+
+
+</div>

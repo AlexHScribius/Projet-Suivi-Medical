@@ -1,186 +1,120 @@
-<div class="allPage" *ngIf="ngOnInitIsLoaded | async" (mouseenter) ="mouseEnter()">
+<div class="allPage" *ngIf="ngOnInitIsLoaded | async" (mouseover) ="mouseOver()">
 
-<div id="modal" *ngIf="confirmationRdvAffichee">
-  <br/>Prendre un rendez-vous pour {{clickedDateStart | date:'HH:mm'}} ?<br/><br/>
-  <div class="row text-center">
-    <div class="col-md-6">
-      <div id="OK" class="btn btn-secondary-contrast" (click)="addEvent()">OK</div>
+  <a [routerLink]="['/accueil']"><div class="btn btn-secondary">Retour à l'Accueil</div></a>
+
+  <ng-template #content let-modal>
+    <div class="modal-header">
+      <h4 class="modal-title">
+        Nouvelle Consultation
+      </h4>
+      <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')">
+        <span aria-hidden="true">&times;</span>
+      </button>
     </div>
-    <div class="col-md-6">
-      <div id="Annuler" class="btn btn-secondary-contrast" (click)="afficherConfirmationRdv()">Annuler</div>
+    <div class="modal-body">
+        Prendre un rendez-vous pour {{clickedDateStart | date:'HH'}}h{{clickedDateStart | date:'mm'}},
+        le {{clickedDateStart | date:'dd/MM/yyyy'}} ?
     </div>
-  </div>
-</div>
-
-<div id="modal2" *ngIf="confirmationSuppressionAffichee">
-  <br/>Voulez-vous vraiment annuler le rendez-vous de {{eventClickedObject.start | date:'dd/MM/yyyy'}} de {{eventClickedObject.start | date:'HH:mm'}} ?<br/>
-  <div class="row text-center">
-    <div class="col-md-6">
-      <div id="OK" class="btn btn-secondary-contrast" (click)="deleteEventClicked();afficherConfirmationSuppression()">OK</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline-secondary" (click)="modal.close('Close click');addEvent()">Oui</button>
     </div>
-    <div class="col-md-6">
-      <div id="Annuler" class="btn btn-secondary-contrast" (click)="afficherConfirmationSuppression()">Annuler</div>
+  </ng-template>
+  
+  <ng-template #content2 let-modal>
+    <div  class="modal-header">
+      <h4 class="modal-title">
+        Consultation existante
+      </h4>
+      <button type="button" class="close" aria-label="Close" (click)="modal.dismiss('Cross click')">
+        <span aria-hidden="true">&times;</span>
+      </button>
     </div>
-  </div>
-</div>
-
-<div id="main" *ngIf="!confirmationRdvAffichee && !confirmationSuppressionAffichee">
-  <div
-    *ngIf="view === CalendarView.Day"
-    class="btn btn-secondary"
-    (click)="setView(CalendarView.Month)"
-    [class.active]="view === CalendarView.Month"
-  >
-    Mois
-  </div>
-
-  <br/><br/>
-
-  <div class="row text-center">
-    <div class="col-md-4">
-      <div
-        class="btn btn-secondary"
-        mwlCalendarPreviousView
-        [view]="view"
-        [(viewDate)]="viewDate"
-        (viewDateChange)="closeOpenMonthViewDay()"
-      >
-        Précédent
+    <div class="modal-body">
+      <div class="form-group">
+        Vous avez sélectionné le rendez-vous de {{eventClickedObject.event.start | date:'dd/MM/yyyy'}}
+        de {{eventClickedObject.event.start | date:'HH'}}h{{eventClickedObject.event.start | date:'mm'}}
+        <div *ngIf="eventClickedObject.event.annulee === true">
+          Ce rendez-vous a été annulé.
+        </div>
+        <div *ngIf="eventClickedObject.event.effectuee === true">
+            Ce rendez-vous est déjà passé.
+        </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <h3>{{ viewDate | calendarDate:(view + 'ViewTitle'):locale:'weekStartsOn' }}</h3>
+    <div class="modal-footer">
+      <button *ngIf="eventClickedObject.event.annulee != true && eventClickedObject.event.effectuee != true" type="button" class="btn btn-outline-secondary" (click)="modal.close('Close click');deleteEventClicked()">Annuler le rendez-vous</button>
+      <button type="button" class="btn btn-outline-secondary" (click)="modal.close('Close click');consulterConsultation()">Consulter le rendez-vous</button>
     </div>
-    <div class="col-md-4">    
-      <div
-        class="btn btn-secondary"
-        mwlCalendarNextView
-        [view]="view"
-        [(viewDate)]="viewDate"
-        (viewDateChange)="closeOpenMonthViewDay()"
-      >
-        Suivant
+  </ng-template>
+
+  <div id="main">
+    <div
+      *ngIf="view === CalendarView.Day"
+      class="btn btn-secondary"
+      (click)="setView(CalendarView.Month)"
+      [class.active]="view === CalendarView.Month"
+    >
+      Mois
+    </div>
+
+    <br/><br/>
+
+    <div class="row text-center">
+      <div class="col-md-4">
+        <div
+          class="btn btn-secondary"
+          mwlCalendarPreviousView
+          [view]="view"
+          [(viewDate)]="viewDate"
+          (viewDateChange)="closeOpenMonthViewDay()"
+        >
+          Précédent
+        </div>
+      </div>
+      <div class="col-md-4">
+        <h3>{{ viewDate | calendarDate:(view + 'ViewTitle'):locale:'weekStartsOn' }}</h3>
+      </div>
+      <div class="col-md-4">    
+        <div
+          class="btn btn-secondary"
+          mwlCalendarNextView
+          [view]="view"
+          [(viewDate)]="viewDate"
+          (viewDateChange)="closeOpenMonthViewDay()"
+        >
+          Suivant
+        </div>
       </div>
     </div>
-  </div>
 
-  <br />
+    <br />
 
-  <div [ngSwitch]="view">
-    <mwl-calendar-month-view
-      *ngSwitchCase="CalendarView.Month"
-      [viewDate]="viewDate"
-      [events]="events"
-      [refresh]="refresh"
-      [locale]="locale"
-      (dayClicked)="dayClicked($event.day)"
-      (eventClicked)="eventClicked($event)"
-      (eventTimesChanged)="eventTimesChanged($event)"
-    >
-    </mwl-calendar-month-view>
-    <mwl-calendar-day-view
-      *ngSwitchCase="CalendarView.Day"
-      [viewDate]="viewDate"
-      [events]="events"
-      [refresh]="refresh"
-      [locale]="locale"
-      (hourSegmentClicked)="hourSegmentClicked($event.date)"
-      (eventClicked)="eventClicked($event)"
-      (eventTimesChanged)="eventTimesChanged($event)"
-    >
-    </mwl-calendar-day-view>
-  </div>
-
-  <!-- Everything you see below is just for the demo, you don't need to include it in your app -->
-
-  <br /><br /><br />
-
-  <h3>
-    Edit events
-    <button class="btn btn-secondary pull-right" (click)="addEvent()">
-      Add new
-    </button>
-    <div class="clearfix"></div>
-  </h3>
-
-  <div class="table-responsive">
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>primary color</th>
-          <th>Secondary color</th>
-          <th>Starts at</th>
-          <th>Ends at</th>
-          <th>Remove</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr *ngFor="let event of events">
-          <td>
-            <input
-              type="text"
-              class="form-control"
-              [(ngModel)]="event.title"
-              (keyup)="refresh.next()"
-            />
-          </td>
-          <td>
-            <input
-              type="color"
-              [(ngModel)]="event.color.secondary"
-              (change)="refresh.next()"
-            />
-          </td>
-          <td>
-            <input
-              type="color"
-              [(ngModel)]="event.color.secondary"
-              (change)="refresh.next()"
-            />
-          </td>
-          <td>
-            <input
-              class="form-control"
-              type="text"
-              mwlFlatpickr
-              [(ngModel)]="event.start"
-              (ngModelChange)="refresh.next()"
-              [altInput]="true"
-              [convertModelValue]="true"
-              [enableTime]="true"
-              dateFormat="Y-m-dTH:i"
-              altFormat="F j, Y H:i"
-              placeholder="Not set"
-            />
-          </td>
-          <td>
-            <input
-              class="form-control"
-              type="text"
-              mwlFlatpickr
-              [(ngModel)]="event.end"
-              (ngModelChange)="refresh.next()"
-              [altInput]="true"
-              [convertModelValue]="true"
-              [enableTime]="true"
-              dateFormat="Y-m-dTH:i"
-              altFormat="F j, Y H:i"
-              placeholder="Not set"
-            />
-          </td>
-          <td>
-            <button class="btn btn-danger" (click)="deleteEvent(event)">
-              Delete
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-</div>
+    <div [ngSwitch]="view">
+      <mwl-calendar-month-view
+        *ngSwitchCase="CalendarView.Month"
+        [viewDate]="viewDate"
+        [events]="events"
+        [refresh]="refresh"
+        [locale]="locale"
+        (dayClicked)="dayClicked($event.day)"
+        (eventClicked)="eventClicked($event,content2)"
+        (eventTimesChanged)="eventTimesChanged($event)"
+      >
+      </mwl-calendar-month-view>
+      <mwl-calendar-day-view
+        *ngSwitchCase="CalendarView.Day"
+        [viewDate]="viewDate"
+        [events]="events"
+        [refresh]="refresh"
+        [locale]="locale"
+        dayStartHour="8"
+        dayEndHour="18"
+        (hourSegmentClicked)="hourSegmentClicked($event.date,content)"
+        (eventClicked)="eventClicked($event,content2)"
+        (eventTimesChanged)="eventTimesChanged($event)"
+      >
+      </mwl-calendar-day-view>
+    </div>
 
 
 </div>

@@ -22,7 +22,7 @@ export class ConsultationService {
   }
 
   getConsultation (idConsultation: number): Observable<Consultation>{
-    return this.http.get<Consultation>(apiUrl+"idConsultation="+idConsultation).pipe();
+    return this.http.get<Consultation>(apiUrl+"consultation?idConsultation="+idConsultation).pipe();
   }
 
   getConsultationByIdDossierPatient (id: number): Observable<Consultation>{
