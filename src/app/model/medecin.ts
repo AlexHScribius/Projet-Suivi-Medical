@@ -2,8 +2,8 @@ export class Medecin {
     idMedecin: number;
     login: string;
     pwd: string;
-    nom: string;
-    prenom: string;
+    nomMedecin: string;
+    prenomMedecin: string;
     age: number;
     adresse: string;
     mail: string;

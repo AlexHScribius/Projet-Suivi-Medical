@@ -42,7 +42,7 @@ export class ConsultationService {
   }
 
   deleteConsultationById (id: number): Observable<any>{
-    return this.http.delete<any>(apiUrl+"delete.idConsultation="+id).pipe();
+    return this.http.delete<any>(apiUrl+"delete?idConsultation="+id).pipe();
   }
 
 }

@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FlatpickrModule } from 'angularx-flatpickr';
 import { CalendarModule, DateAdapter } from 'angular-calendar';
+import { DayViewSchedulerComponent } from '../app/agenda-general/day-view-scheduler.component';
 import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 
@@ -27,7 +28,8 @@ registerLocaleData(localeFr);
     AppComponent,
     AccueilComponent,
     AgendaGeneralComponent,
-    DetailConsultationComponent
+    DetailConsultationComponent,
+    DayViewSchedulerComponent
   ],
   imports: [
     BrowserAnimationsModule,
@@ -44,7 +46,7 @@ registerLocaleData(localeFr);
       useFactory: adapterFactory
     })
   ],
-  exports: [AgendaGeneralComponent,DetailConsultationComponent],
+  exports: [AgendaGeneralComponent,DetailConsultationComponent,DayViewSchedulerComponent],
   providers: [],
   bootstrap: [AppComponent]
 })

@@ -5,7 +5,10 @@ import {
   ViewChild,
   TemplateRef,
   Inject,
-  OnDestroy
+  OnDestroy,
+  EventEmitter,
+  Injectable,
+  Output
 } from '@angular/core';
 import {
   startOfDay,
@@ -29,17 +32,29 @@ import {
   CalendarEventTimesChangedEvent,
   CalendarView,
   CalendarDateFormatter,
-  DAYS_OF_WEEK
+  CalendarUtils ,
+  DAYS_OF_WEEK,
+  CalendarMonthViewDay,
+  CalendarDayViewComponent
 } from 'angular-calendar';
-import { CustomDateFormatter } from '../agenda-general/custom-date-formatter.provider';
-import { DOCUMENT } from '@angular/common'; 
-import { CalendarDayViewHourSegmentComponent } from 'angular-calendar/modules/day/calendar-day-view-hour-segment.component';
-import { Consultation } from '../model/consultation';
-import { ConsultationService } from '../services/consultation.service';
+import {
+  DayView,
+  DayViewEvent,
+  GetDayViewArgs
+} from 'calendar-utils';
 import { stringify } from 'querystring';
 import { isNull } from 'util';
-import { DataService } from '../services/data.service';
+import { CustomDateFormatter } from '../agenda-general/custom-date-formatter.provider';
+import { DOCUMENT } from '@angular/common'; 
+import { DayViewSchedulerComponent } from './day-view-scheduler.component';
 import { Router } from '@angular/router';
+
+import { Consultation } from '../model/consultation';
+import { ConsultationService } from '../services/consultation.service';
+import { DataService } from '../services/data.service';
+import { Medecin } from '../model/medecin';
+import { MedecinService } from '../services/medecin.service';
+
 
 const colors: any = {
   red: {
@@ -66,6 +81,17 @@ const colors: any = {
       provide: CalendarDateFormatter,
       useClass: CustomDateFormatter
     }
+  ],
+  styles: [
+    `
+      .cell-totals {
+        margin: 5px;
+        text-align: center;
+      }
+      .badge {
+        margin-right: 5px;
+      }
+    `
   ]
 })
 
@@ -74,10 +100,11 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
   constructor(
     private modalService: NgbModal,
     private consultationService: ConsultationService,
+    private medecinService: MedecinService,
     private dataService: DataService,
     private modal: NgbModal,
     private _router: Router,
-    @Inject(DOCUMENT) document)
+    @Inject(DOCUMENT) documents)
   {}
 
   @ViewChild('modalContent', { static: true }) modalContent: TemplateRef<any>;
@@ -102,9 +129,6 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
       }
     }
   ];
-
-  confirmationRdvAffichee: boolean = false;
-  eventClickedAffichee: boolean = false;
 
   view: CalendarView = CalendarView.Month;
 
@@ -134,6 +158,8 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
 
   consultations: Consultation[];
   consultationTemporaire: Consultation;
+  medecins: Medecin[];
+  medecinTemporaire: Medecin;
 
   ngOnInitIsLoaded: Promise<boolean>;
 
@@ -143,11 +169,16 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
 
   ngOnInit() {
     const that = this;
+    this.medecinService.getMedecins().subscribe(
+      res => {
+        that.medecins = res;
+        console.log(that.medecins);
+      }
+    );
     this.consultationService.getConsultations().subscribe( // recherche de la liste des consultations
       res => {
         that.consultations = res;
-  
-        for (let i=0;i<that.consultations.length;i++){
+        for (let i=0 ; i<that.consultations.length ; i++){
           let title: string = '';
           if (isNull(that.consultations[i]['prenomPatient']) && isNull(that.consultations[i]['nomPatient'])){
             title='Consultation (Patient inconnu)'
@@ -165,39 +196,52 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
           let annulee: boolean;
           let effectuee: boolean;
           let now: Date = new Date();
+          let type: string;
           if (that.consultations[i]['annulee'] === true){
             color = colors.red;
             annulee = true;
             effectuee = false;
+            type = "danger";
           } else {
             annulee = false;
             if (new Date(that.consultations[i]['date']) < now){
               color = colors.yellow;
               effectuee = true;
+              type = "warning";
             } else {
               color = colors.blue;
               effectuee = false;
+              type = "info";
             }
           }
-          // adapter la couleur au connectedUser
-          that.events = [
-            ...that.events,
-            {
-              id: that.consultations[i]['idConsultation'],
-              title: title,
-              start: new Date(that.consultations[i]['date']),
-              end: end,
-              color: color,
-              allDay: false,
-              draggable: false,
-              resizable: {
-                beforeStart: false,
-                afterEnd: false
-              },
-              annulee: annulee,
-              effectuee: effectuee
+          this.medecinService.getMedecin(+this.consultations[i]['idMedecin']).subscribe(
+            res => {
+              that.medecinTemporaire = res;
+
+              that.events = [
+                ...that.events,
+                {
+                  id: that.consultations[i]['idConsultation'],
+                  title: title,
+                  start: new Date(that.consultations[i]['date']),
+                  end: end,
+                  color: color,
+                  allDay: false,
+                  draggable: false,
+                  resizable: {
+                    beforeStart: false,
+                    afterEnd: false
+                  },
+                  meta: {
+                    medecin: that.medecinTemporaire,
+                    annulee: annulee,
+                    effectuee: effectuee,
+                    type: type
+                  },
+                }
+              ];
             }
-          ];
+          );
         }
       }
     );
@@ -205,6 +249,17 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
   }
 
   mouseOver(){ // pour actualiser la page
+  }
+
+  beforeMonthViewRender({ body }: { body: CalendarMonthViewDay[] }): void {
+    body.forEach(cell => {
+      const groups: any = {};
+      cell.events.forEach((event: CalendarEvent<{ type: string }>) => {
+        groups[event.meta.type] = groups[event.meta.type] || [];
+        groups[event.meta.type].push(event);
+      });
+      cell['eventGroups'] = Object.entries(groups);
+    });
   }
 
   private getDismissReason(reason: any): string { // appelé par le modal en cas d'erreur
@@ -215,14 +270,6 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
     } else {
       return  `with: ${reason}`;
     }
-  }
-
-  afficherConfirmationRdv(){
-    this.confirmationRdvAffichee=!this.confirmationRdvAffichee;
-  }
-
-  afficherEventClicked(){
-    this.eventClickedAffichee=!this.eventClickedAffichee;
   }
 
   dayClicked({ date, events }: { date: Date; events: CalendarEvent[] }): Date {
@@ -377,8 +424,8 @@ export class AgendaGeneralComponent implements OnInit,OnDestroy {
     this.consultationService.getConsultation(+this.eventClickedObject['event'].id).subscribe(
       res => {
         that.consultationTemporaire = res;
-        that.consultationTemporaire.annulee = this.eventClickedObject['event'].annulee;
-        that.consultationTemporaire.effectuee = this.eventClickedObject['event'].effectuee;
+        that.consultationTemporaire.annulee = this.eventClickedObject['event'].meta.annulee;
+        that.consultationTemporaire.effectuee = this.eventClickedObject['event'].meta.effectuee;
         this.dataService.consultation = that.consultationTemporaire;
         this._router.navigate(['detailConsultation']);
       }

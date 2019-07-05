@@ -2,6 +2,7 @@
 
   <a [routerLink]="['/accueil']"><div class="btn btn-secondary">Retour à l'Accueil</div></a>
 
+  <!-- ++++++++++++++++ Modale 1 : ++++++++++++++++ -->
   <ng-template #content let-modal>
     <div class="modal-header">
       <h4 class="modal-title">
@@ -20,6 +21,7 @@
     </div>
   </ng-template>
   
+  <!-- ++++++++++++++++ Modale 2 : ++++++++++++++++ -->
   <ng-template #content2 let-modal>
     <div  class="modal-header">
       <h4 class="modal-title">
@@ -47,7 +49,26 @@
     </div>
   </ng-template>
 
+  <!-- ++++++++++++++++ template pour badge event : ++++++++++++++++ -->
+  <ng-template #customCellTemplate let-day="day" let-locale="locale">
+    <div class="cal-cell-top">
+      <span class="cal-day-badge" *ngIf="day.badgeTotal > 0">
+        {{ day.badgeTotal }}
+      </span>
+      <span class="cal-day-number">
+        {{ day.date | calendarDate:'monthViewDayNumber':locale }}
+      </span>
+    </div>
+    <div class="cell-totals">
+      <span *ngFor="let group of day.eventGroups" class="badge badge-{{ group[0] }}">
+        {{ group[1].length }}
+      </span>
+    </div>
+  </ng-template>
+
+  <!-- ++++++++++++++++ MAIN : ++++++++++++++++ -->
   <div id="main">
+    <!-- -------------- bouton vers CalendarView.Month : -------------- -->
     <div
       *ngIf="view === CalendarView.Day"
       class="btn btn-secondary"
@@ -59,6 +80,7 @@
 
     <br/><br/>
 
+    <!-- -------------- boutons précédent/suivant : -------------- -->
     <div class="row text-center">
       <div class="col-md-4">
         <div
@@ -89,18 +111,27 @@
 
     <br />
 
+
+    <!-- -------------- Vues par mois/jour (schedule à part) : -------------- -->
     <div [ngSwitch]="view">
+      
+      <!-- Month view : -->
       <mwl-calendar-month-view
         *ngSwitchCase="CalendarView.Month"
         [viewDate]="viewDate"
         [events]="events"
         [refresh]="refresh"
         [locale]="locale"
+        [cellTemplate]="customCellTemplate"
+        weekStartsOn="1"
+        (beforeViewRender)="beforeMonthViewRender($event)"
         (dayClicked)="dayClicked($event.day)"
         (eventClicked)="eventClicked($event,content2)"
         (eventTimesChanged)="eventTimesChanged($event)"
       >
       </mwl-calendar-month-view>
+    
+      <!-- Day view : -->
       <mwl-calendar-day-view
         *ngSwitchCase="CalendarView.Day"
         [viewDate]="viewDate"
@@ -112,9 +143,127 @@
         (hourSegmentClicked)="hourSegmentClicked($event.date,content)"
         (eventClicked)="eventClicked($event,content2)"
         (eventTimesChanged)="eventTimesChanged($event)"
-      >
-      </mwl-calendar-day-view>
-    </div>
+      ></mwl-calendar-day-view>
 
+    </div> <br/><br/>
+
+    <!-- -------------- Vue par schedule 1 : -------------- -->
+    <mwl-day-view-scheduler
+      [viewDate]="viewDate"
+      [events]="events"
+      [refresh]="refresh"
+      dayStartHour="8"
+      dayEndHour="18"
+      (eventTimesChanged)="eventTimesChanged($event)"
+      (userChanged)="userChanged($event)"
+    ></mwl-day-view-scheduler>
+
+
+    <!-- -------------- Vue par schedule 2 : -------------- -->
+    <div class="cal-day-view" #dayViewContainer *ngIf="view === CalendarView.Day">
+    
+      <!-- Entête de colonnes : nom des médecins : -->
+      <div class="day-view-column-headers">
+        <div class="day-view-column-header" *ngFor="let medecin of medecins">
+          {{ medecin.nomMedecin }}
+        </div>
+      </div>
+    
+      <!-- Mise en forme des lignes (segments/events) : -->
+      <div
+        class="cal-hour-rows"
+        mwlDroppable
+        (dragEnter)="eventDragEnter = eventDragEnter + 1"
+        (dragLeave)="eventDragEnter = eventDragEnter - 1"
+      >
+        <!-- //Mise en forme des events// -->
+        <div class="cal-events">
+          <div
+            #event
+            *ngFor="let dayEvent of view?.events; trackBy: trackByDayEvent"
+            class="cal-event-container"
+            [class.cal-draggable]="dayEvent.event.draggable"
+            [class.cal-starts-within-day]="!dayEvent.startsBeforeDay"
+            [class.cal-ends-within-day]="!dayEvent.endsAfterDay"
+            [ngClass]="dayEvent.event.cssClass"
+            mwlResizable
+            [resizeSnapGrid]="{
+              top: eventSnapSize || hourSegmentHeight,
+              bottom: eventSnapSize || hourSegmentHeight
+            }"
+            [validateResize]="validateResize"
+            (resizeStart)="resizeStarted(dayEvent, $event, dayViewContainer)"
+            (resizing)="resizing(dayEvent, $event)"
+            (resizeEnd)="resizeEnded(dayEvent)"
+            mwlDraggable
+            [dragAxis]="{
+              x: currentResizes.size === 0,
+              y: dayEvent.event.draggable && currentResizes.size === 0
+            }"
+            [dragSnapGrid]="{
+              y: eventSnapSize || hourSegmentHeight,
+              x: eventWidth
+            }"
+            [validateDrag]="validateDrag"
+            [ghostDragEnabled]="!snapDraggedEvents"
+            (dragStart)="dragStarted(event, dayViewContainer, dayEvent)"
+            (dragging)="dragMove($event)"
+            (dragEnd)="eventDragged(dayEvent, $event.x, $event.y)"
+            [style.marginTop.px]="dayEvent.top"
+            [style.height.px]="dayEvent.height"
+            [style.marginLeft.px]="dayEvent.left + 70"
+            [style.width.px]="dayEvent.width - 1"
+          >
+            <div
+              class="cal-resize-handle cal-resize-handle-before-start"
+              *ngIf="dayEvent.event?.resizable?.beforeStart && !dayEvent.startsBeforeDay"
+              mwlResizeHandle
+              [resizeEdges]="{ top: true }"
+            ></div>
+            <mwl-calendar-day-view-event
+              [dayEvent]="dayEvent"
+              [tooltipPlacement]="tooltipPlacement"
+              [tooltipTemplate]="tooltipTemplate"
+              [tooltipAppendToBody]="tooltipAppendToBody"
+              [customTemplate]="eventTemplate"
+              [eventTitleTemplate]="eventTitleTemplate"
+              [eventActionsTemplate]="eventActionsTemplate"
+              (eventClicked)="eventClicked.emit({ event: dayEvent.event })"
+            ></mwl-calendar-day-view-event>
+            <div
+              class="cal-resize-handle cal-resize-handle-after-end"
+              *ngIf="dayEvent.event?.resizable?.afterEnd && !dayEvent.endsAfterDay"
+              mwlResizeHandle
+              [resizeEdges]="{ bottom: true }"
+            ></div>
+          </div>
+        </div>
+
+        <!-- //Mise en forme des segments// -->
+        <div
+          class="cal-hour"
+          *ngFor="let hour of hours; trackBy: trackByHour"
+          [style.minWidth.px]="view?.width + 70"
+        >
+          <mwl-calendar-day-view-hour-segment
+            *ngFor="let segment of hour.segments; trackBy: trackByHourSegment"
+            [style.height.px]="hourSegmentHeight"
+            [segment]="segment"
+            [segmentHeight]="hourSegmentHeight"
+            [locale]="locale"
+            [customTemplate]="hourSegmentTemplate"
+            (mwlClick)="hourSegmentClicked.emit({ date: segment.date })"
+            mwlDroppable
+            dragOverClass="cal-drag-over"
+            dragActiveClass="cal-drag-active"
+            (drop)="eventDropped($event, segment.date, false)"
+          ></mwl-calendar-day-view-hour-segment>
+        </div>
+      </div>
+    </div>
+    <!-- -------------- Fin de vue par schedule : -------------- -->
+
+  </div>
+  <!-- ++++++++++++++++ FIN DE MAIN : ++++++++++++++++ -->
 
 </div>
